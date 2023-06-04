@@ -2,16 +2,21 @@ from requests_html import HTMLSession
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-from collections import defaultdict
 import random
 import csv
 
 def load_proxies(file):
+    """
+    load the given proxy file and return all proxies in it
+    """
     with open(file, 'r') as f:
         proxies = f.read().splitlines()
     return proxies
 
 def getdata(url, proxies):
+    """
+    request data with random proxies and return the soup
+    """
     while True:
         proxy = random.choice(proxies)
         proxies_dict = {
@@ -20,7 +25,7 @@ def getdata(url, proxies):
         }
         try:
             r = s.get(url, headers=headers, proxies=proxies_dict, timeout=timeout)
-            r.html.render(sleep=0.2)
+            r.html.render(sleep=0.1)
             soup = BeautifulSoup(r.html.html, 'html.parser')
             return soup
         except (requests.exceptions.RequestException, ConnectionError) as e:
@@ -33,6 +38,9 @@ def getdata(url, proxies):
 
 
 def getnextpage(soup):
+    """
+    find the link to the next page and return it. return nothing if no next page.
+    """
     pages = soup.find("span", {"class": "s-pagination-strip"})
     if pages:
         next_page = pages.find("a", {"class": "s-pagination-item s-pagination-next s-pagination-button s-pagination-separator"})
@@ -42,6 +50,10 @@ def getnextpage(soup):
     return None
 
 def get_page_products(soup, keyword):
+    """
+    get all the product information displayed at search
+    """
+
     product_divs = soup.find_all("div", {"data-component-type": "s-search-result"})
     for product in product_divs:
         asin = product["data-asin"]
@@ -67,6 +79,10 @@ def get_page_products(soup, keyword):
                               "Img Link": product_details[2], "Link": link}, keyword)
 
 def search_product(url):
+    """
+    get all the product data that is displayed at product site
+    """
+
     soup = getdata(url, proxies)
 
     bsr = ""
@@ -97,23 +113,18 @@ def search_product(url):
 
     return [rating, bsr, image_url, product_title]
 
-
-def combine_dicts(dicts):
-    combined_dict = defaultdict(list)
-    for d in dicts:
-        for key, value in d.items():
-            combined_dict[key].extend(value)
-    return dict(combined_dict)
-
 def write_product_to_csv(product_data, keyword):
+    """
+    write the scraped data live to csv
+    """
     with open(f"{keyword}.csv", 'a', newline='', encoding='utf-8') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(product_data.values())
 
 if __name__ == '__main__':
     keyword = str(input("Enter the keyword: "))
-    keyword = keyword.replace(" ", "+")
-    retries = 5  # Number of retries for each page
+    keyword = keyword.replace(" ", "+") # replace keyword spaces for url
+    retries = 20  # Number of retries for each page
     
     s = HTMLSession()
     url = f'https://www.amazon.com/s?k={keyword}'
@@ -121,24 +132,22 @@ if __name__ == '__main__':
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
     proxies_file = "http_proxies.txt"
-    timeout = 5
+    timeout = 20
 
     while True:
         proxies = load_proxies(proxies_file)
         data = getdata(url, proxies)
-        
-        #print(data)
-        #print(url)
-        if data is None:
+
+        if data is None: 
             retries -= 1
             if retries == 0:
                 break
             continue
-        
+
         get_page_products(data, keyword)
         url = getnextpage(data)
         
         if not url:
             break
 
-        retries = 5  # Reset the number of retries for the next page
+        retries = 20  # Reset the number of retries for the next page
