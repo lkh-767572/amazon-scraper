@@ -5,6 +5,7 @@ from datetime import datetime
 import random
 import csv
 
+
 def load_proxies(file):
     """
     load the given proxy file and return all proxies in it
@@ -12,6 +13,7 @@ def load_proxies(file):
     with open(file, 'r') as f:
         proxies = f.read().splitlines()
     return proxies
+
 
 def getdata(url, proxies):
     """
@@ -43,11 +45,13 @@ def getnextpage(soup):
     """
     pages = soup.find("span", {"class": "s-pagination-strip"})
     if pages:
-        next_page = pages.find("a", {"class": "s-pagination-item s-pagination-next s-pagination-button s-pagination-separator"})
+        next_page = pages.find("a", {
+            "class": "s-pagination-item s-pagination-next s-pagination-button s-pagination-separator"})
         if next_page:
             url = f"https://www.amazon.com{next_page['href']}"
             return url
     return None
+
 
 def get_page_products(soup, keyword):
     """
@@ -77,6 +81,7 @@ def get_page_products(soup, keyword):
         write_product_to_csv({"Title": product_details[3], "Price": price, "Date": current_date, "ASIN": asin,
                               "Rating": product_details[0], "Amazon Best Seller": product_details[1],
                               "Img Link": product_details[2], "Link": link}, keyword)
+
 
 def search_product(url):
     """
@@ -113,6 +118,7 @@ def search_product(url):
 
     return [rating, bsr, image_url, product_title]
 
+
 def write_product_to_csv(product_data, keyword):
     """
     write the scraped data live to csv
@@ -121,33 +127,37 @@ def write_product_to_csv(product_data, keyword):
         writer = csv.writer(csvfile)
         writer.writerow(product_data.values())
 
+
 if __name__ == '__main__':
     keyword = str(input("Enter the keyword: "))
-    keyword = keyword.replace(" ", "+") # replace keyword spaces for url
-    retries = 20  # Number of retries for each page
-    
-    s = HTMLSession()
-    url = f'https://www.amazon.com/s?k={keyword}'
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-    }
-    proxies_file = "http_proxies.txt"
-    timeout = 20
+    keyword = keyword.replace(" ", "+")  # replace keyword spaces for url
 
     while True:
-        proxies = load_proxies(proxies_file)
-        data = getdata(url, proxies)
 
-        if data is None: 
-            retries -= 1
-            if retries == 0:
+        retries = 20  # Number of retries for each page
+
+        s = HTMLSession()
+        url = f'https://www.amazon.com/s?k={keyword}'
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        proxies_file = "http_proxies.txt"
+        timeout = 20
+
+        while True:
+            proxies = load_proxies(proxies_file)
+            data = getdata(url, proxies)
+
+            if data is None:
+                retries -= 1
+                if retries == 0:
+                    break
+                continue
+
+            get_page_products(data, keyword)
+            url = getnextpage(data)
+
+            if not url:
                 break
-            continue
 
-        get_page_products(data, keyword)
-        url = getnextpage(data)
-        
-        if not url:
-            break
-
-        retries = 20  # Reset the number of retries for the next page
+            retries = 20  # Reset the number of retries for the next page
