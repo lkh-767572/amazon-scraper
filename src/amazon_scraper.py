@@ -69,6 +69,10 @@ def get_page_products(soup, keyword):
 def search_product(url):
     soup = getdata(url, proxies)
 
+    bsr = ""
+    image_url = ""
+    rating = ""
+
     product_title = soup.find("h1", {"id": "title"})
     if product_title:
         product_title = product_title.text
@@ -76,12 +80,13 @@ def search_product(url):
 
     image_element = soup.find('img', {'id': 'landingImage'})
     if image_element:
-        image_url = image_element['data-old-hires']
+        image_url = image_element['src']
 
-    rating_element = soup.find('span', {'class': 'a-icon-alt'})
-    rating = rating_element.text.strip()
-
-    bsr = ""
+    rating_element = soup.find('div', {'id': 'averageCustomerReviews'})
+    if rating_element:
+        rating = rating_element.find("span", {"class": "a-size-base a-color-base"})
+        if rating:
+            rating = rating.text.strip()
 
     possible_best_seller_label = soup.find_all("th", {"class": "a-color-secondary a-size-base prodDetSectionEntry"})
     if possible_best_seller_label:
